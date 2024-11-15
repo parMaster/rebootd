@@ -1,0 +1,22 @@
+[Unit]
+Description=Reboot Daemon Service
+After=network-online.target
+Wants=network-online.target
+
+Wants=nss-lookup.target
+Before=nss-lookup.target
+
+# This parameter should make systemd try to start a service forever
+# with Restart=always and RestartSec=30 it should retry every 30 sec indefinitely
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=30
+User=root
+ExecStart=/usr/local/bin/rebootd --dbg
+StandardOutput=append:/var/log/rebootd.log
+
+[Install]
+WantedBy=multi-user.target
