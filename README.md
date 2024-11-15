@@ -1,5 +1,5 @@
 # rebootd - A simple reboot daemon for Linux
-rebootd is a simple reboot daemon for Linux. It supposed to be run as systemd service and will reboot the system if network is inreachable for a certain amount of time.
+rebootd is a simple reboot daemon for Linux. It supposed to be run as systemd service and will reboot the system if network is unreachable for a certain amount of time (failed to GET a certain url).
 
 ## Installation
 
