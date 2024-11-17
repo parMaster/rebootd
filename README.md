@@ -10,14 +10,15 @@ rebootd is a simple reboot daemon for Linux. It supposed to be run as systemd se
 ## Options
 
 ```shell
+✗ ./rebootd --help
 Usage:
   rebootd [OPTIONS]
 
 Application Options:
       --dbg             show debug info [$DEBUG]
   -v                    Show version and exit
-  -a                    Number of failed attempts allowed before reboot (default: 3)
-      --address=        Address to check (default: https://www.google.com)
+  -a=                   Number of failed attempts allowed before reboot (default: 5)
+      --address=        Address list to check - comma separated (default: https://www.google.com,https://www.cloudflare.com,https://www.amazon.com)
   -i, --interval=       Interval between checks (default: 15m) [$INTERVAL]
   -r, --retry-interval= Interval between checks after failed attempt (default: 5m) [$RETRY_INTERVAL]
 

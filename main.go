@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,8 +19,8 @@ import (
 type Options struct {
 	Dbg             bool          `long:"dbg" env:"DEBUG" description:"show debug info"`
 	Version         bool          `short:"v" description:"Show version and exit"`
-	AttemptsAllowed int           `short:"a" description:"Number of failed attempts allowed before reboot" default:"3"`
-	Address         string        `long:"address" description:"Address to check" default:"https://www.google.com"`
+	AttemptsAllowed int           `short:"a" description:"Number of failed attempts allowed before reboot" default:"5"`
+	Address         string        `long:"address" description:"Address list to check - comma separated" default:"https://www.google.com,https://www.cloudflare.com,https://www.amazon.com"`
 	Interval        time.Duration `short:"i" long:"interval" env:"INTERVAL" default:"15m" description:"Interval between checks"`
 	RetryInterval   time.Duration `short:"r" long:"retry-interval" env:"RETRY_INTERVAL" default:"5m" description:"Interval between checks after failed attempt"`
 }
@@ -75,7 +76,6 @@ func main() {
 }
 
 func worker(ctx context.Context, opts Options) {
-
 	log.Printf("[INFO] Worker started with options: \n* Interval: %s \n* Retry Interval: %s \n* Attempts Allowed: %d\n* Check Address: %s \nversion: %s",
 		opts.Interval.String(), opts.RetryInterval.String(), opts.AttemptsAllowed, opts.Address, version)
 
@@ -91,7 +91,7 @@ func worker(ctx context.Context, opts Options) {
 			log.Printf("[INFO] Interval passed: %s", interval)
 
 			// Network check
-			err := checkNetwork(opts.Address)
+			err := testConnection(opts.Address)
 			if err == nil {
 				log.Printf("[INFO] Network check passed")
 				failedAttempts = 0
@@ -104,13 +104,14 @@ func worker(ctx context.Context, opts Options) {
 			log.Printf("[INFO] Network check failed: %s", err)
 			log.Printf("[DEBUG] Failed attempts: %d", failedAttempts)
 
-			// First failed GET - attempt to fix the issue by restarting systemd-resolved
+			// First failed check - attempt to fix the issue by restarting systemd-resolved and retry
 			if failedAttempts == 1 {
 				exec.Command("systemctl", "restart", "systemd-resolved").Run()
 				log.Printf("[INFO] Restarted systemd-resolved")
+				continue
 			}
 
-			if failedAttempts > opts.AttemptsAllowed {
+			if failedAttempts >= opts.AttemptsAllowed {
 				log.Printf("[INFO] Network check failed %d times, rebooting system", failedAttempts)
 				if err := reboot(); err != nil {
 					log.Printf("[ERROR] Failed to reboot: %e", err)
@@ -121,24 +122,40 @@ func worker(ctx context.Context, opts Options) {
 	}
 }
 
-func checkNetwork(addr string) error {
-	// checking network status (if addr is reachable)
-	// this should fail if there is no network connection or dns resolution is not working
-	httpClient := http.Client{
-		Timeout: 30 * time.Second,
-	}
-	_, err := httpClient.Get(addr)
-	if err != nil {
-		return fmt.Errorf("failed to get %s: %w", addr, err)
+// testConnection checks if the connection is available to the provided address slice (comma separated).
+// It returns nil if at least one of the addresses is reachable
+func testConnection(addr string) error {
+	if addr == "" {
+		return fmt.Errorf("empty address")
 	}
 
+	urls := strings.Split(addr, ",")
+	for _, url := range urls {
+		url = strings.TrimSpace(url)
+		err := getWithTimeout(url)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("all connection tests failed: %s", addr)
+}
+
+// getWithTimeout performs a GET request with a timeout
+func getWithTimeout(addr string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", addr, nil)
+	_, err := http.DefaultClient.Do(req)
 	return err
 }
 
-// reboot reboots the system
+// reboot reboots the system (Linux only) using syscall.Reboot.
+// Won't work on Windows, MacOS, etc. Won't even compile.
 func reboot() error {
 	log.Printf("[INFO] !!! REBOOT CALLED !!!")
-	// return nil
 	syscall.Sync()
 	return syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
+	// return nil
 }
