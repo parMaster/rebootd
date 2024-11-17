@@ -1,5 +1,10 @@
 # rebootd - A simple reboot daemon for Linux
-rebootd is a simple reboot daemon for Linux. It supposed to be run as systemd service and will reboot the system if network is unreachable for a certain amount of time (failed to GET a certain url).
+rebootd is a simple reboot daemon for Linux. It supposed to be run as systemd service and will reboot the system if network is unreachable for a certain amount of time (failed to GET a certain urls - comma separated list, default: https://www.google.com,https://www.cloudflare.com,https://www.amazon.com).
+It will try to restart `systemd-resolved` at the first failed attempt.
+It will try to reach the url every 15 minutes and if it fails 5 times in a row, it will reboot the system.
+
+## Use case
+Remote servers that are not reachable and need to be rebooted. This is a simple solution to reboot the server if it's not reachable.
 
 ## Installation
 
