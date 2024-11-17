@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -103,16 +104,16 @@ func worker(ctx context.Context, opts Options) {
 			log.Printf("[INFO] Network check failed: %s", err)
 			log.Printf("[DEBUG] Failed attempts: %d", failedAttempts)
 
-			select {
-			case <-ctx.Done():
-				log.Printf("[INFO] Worker stopped: %s", ctx.Err())
-				return
-			default:
-				if failedAttempts > opts.AttemptsAllowed {
-					log.Printf("[INFO] Network check failed %d times, rebooting system", failedAttempts)
-					if err := reboot(); err != nil {
-						log.Printf("[ERROR] Failed to reboot: %e", err)
-					}
+			// First failed GET - attempt to fix the issue by restarting systemd-resolved
+			if failedAttempts == 1 {
+				exec.Command("systemctl", "restart", "systemd-resolved").Run()
+				log.Printf("[INFO] Restarted systemd-resolved")
+			}
+
+			if failedAttempts > opts.AttemptsAllowed {
+				log.Printf("[INFO] Network check failed %d times, rebooting system", failedAttempts)
+				if err := reboot(); err != nil {
+					log.Printf("[ERROR] Failed to reboot: %e", err)
 				}
 			}
 		}
@@ -121,14 +122,14 @@ func worker(ctx context.Context, opts Options) {
 }
 
 func checkNetwork(addr string) error {
-	// checking network status (if google.com is reachable)
+	// checking network status (if addr is reachable)
 	// this should fail if there is no network connection or dns resolution is not working
 	httpClient := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 30 * time.Second,
 	}
 	_, err := httpClient.Get(addr)
 	if err != nil {
-		return fmt.Errorf("failed to get google.com: %w", err)
+		return fmt.Errorf("failed to get %s: %w", addr, err)
 	}
 
 	return err
