@@ -76,8 +76,8 @@ func main() {
 
 func worker(ctx context.Context, opts Options) {
 
-	log.Printf("[INFO] Worker started with options: \n* Interval: %s \n* Retry Interval: %s \n* Attempts Allowed: %d\n* Check Address: %s",
-		opts.Interval.String(), opts.RetryInterval.String(), opts.AttemptsAllowed, opts.Address)
+	log.Printf("[INFO] Worker started with options: \n* Interval: %s \n* Retry Interval: %s \n* Attempts Allowed: %d\n* Check Address: %s \nversion: %s",
+		opts.Interval.String(), opts.RetryInterval.String(), opts.AttemptsAllowed, opts.Address, version)
 
 	interval := opts.Interval
 
