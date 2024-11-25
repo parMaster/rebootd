@@ -108,6 +108,9 @@ func worker(ctx context.Context, opts Options) {
 			if failedAttempts == 1 {
 				exec.Command("systemctl", "restart", "systemd-resolved").Run()
 				log.Printf("[INFO] Restarted systemd-resolved")
+				time.Sleep(5 * time.Second)
+				exec.Command("systemctl", "restart", "NetworkManager").Run()
+				log.Printf("[INFO] Restarted NetworkManager")
 				continue
 			}
 
